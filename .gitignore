@@ -1,0 +1,16 @@
+# Evitar subir dependencias instaladas localmente
+checador-backend/node_modules/
+checador-frontend/node_modules/
+
+# Evitar subir contraseñas locales
+checador-backend/.env
+checador-backend/logs/
+checador-backend/*.log
+checador-backend/app_debug.log
+checador-backend/test_get_employees.js
+
+# Archivos de editores y del sistema operativo
+.DS_Store
+.vscode/
+.idea/
+Thumbs.db
