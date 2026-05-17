@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Turnos — GoCheck</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/fontawesome/all.min.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-placeholder"></div>
+  <div class="main-content">
+    <div id="navbar-placeholder"></div>
+    <div class="page-body">
+
+      <div class="page-title-bar">
+        <div>
+          <div class="page-title"><i class="fas fa-clock page-icon"></i> Turnos laborales</div>
+          <div class="page-subtitle">Configuración de horarios base</div>
+        </div>
+        <button class="btn btn-primary" onclick="Page.openCreate()">
+          <i class="fas fa-plus"></i> Nuevo turno
+        </button>
+      </div>
+
+      <!-- Cards de turnos -->
+      <div class="row g-3" id="turnosGrid"></div>
+
+    </div>
+    <div id="footer-placeholder"></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="turnoModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="turnoModalTitle">Nuevo turno</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="turnoForm">
+          <input type="hidden" id="turnoId">
+          <div class="mb-3">
+            <label class="form-label">Nombre del turno</label>
+            <input type="text" class="form-control" id="turnoNombre" placeholder="Ej. Matutino" required>
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">Hora de entrada</label>
+              <input type="time" class="form-control" id="turnoEntrada" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Hora de salida</label>
+              <input type="time" class="form-control" id="turnoSalida" required>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label">Tolerancia (minutos)</label>
+            <input type="number" class="form-control" id="turnoTolerancia" value="10" min="0" max="60">
+          </div>
+          <div class="mt-3">
+            <label class="form-label">Descripción</label>
+            <textarea class="form-control" id="turnoDesc" rows="2" placeholder="Opcional…"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" onclick="Page.save()"><i class="fas fa-save"></i> Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script>
+const ACCENT = ['primary','blue','orange','red','purple'];
+
+const Page = {
+  async init() { this.load(); },
+
+  async load() {
+    const grid = document.getElementById('turnosGrid');
+    grid.innerHTML = '<div class="col-12"><div class="skeleton" style="height:120px;border-radius:16px"></div></div>';
+    const res = await API.Turnos.list();
+    if (!res.ok || !res.data?.length) {
+      grid.innerHTML = '<div class="col-12 text-center py-4 text-muted">Sin turnos registrados</div>';
+      return;
+    }
+
+    grid.innerHTML = res.data.map((t, i) => {
+      const acc = ACCENT[i % ACCENT.length];
+      const dur = this.calcDuracion(t.hora_entrada, t.hora_salida);
+      return `
+        <div class="col-12 col-sm-6 col-xl-4">
+          <div class="stat-card ${acc}" style="padding:22px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+              <div>
+                <div style="font-family:var(--font-display);font-size:18px;font-weight:700">${t.nombre}</div>
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${t.descripcion||'Turno laboral'}</div>
+              </div>
+              ${Utils.activoBadge(t.activo)}
+            </div>
+            <div style="display:flex;gap:16px;margin-bottom:14px">
+              <div>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em">Entrada</div>
+                <div style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--text-primary)">${t.hora_entrada?.substring(0,5)}</div>
+              </div>
+              <div style="align-self:center;color:var(--text-muted)">→</div>
+              <div>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em">Salida</div>
+                <div style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--text-primary)">${t.hora_salida?.substring(0,5)}</div>
+              </div>
+              <div style="margin-left:auto;align-self:flex-end">
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">Duración</div>
+                <div style="font-family:var(--font-mono);font-size:14px">${dur}</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">
+                <i class="fas fa-stopwatch me-1"></i>${t.tolerancia_min} min tolerancia
+              </span>
+              <div style="display:flex;gap:4px">
+                <button class="btn btn-outline btn-icon btn-sm" onclick="Page.openEdit(${t.id_turno})">
+                  <i class="fas fa-pencil"></i>
+                </button>
+                <button class="btn btn-danger-outline btn-icon btn-sm" onclick="Page.toggle(${t.id_turno},${t.activo})">
+                  <i class="fas fa-${t.activo?'ban':'check'}"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  },
+
+  calcDuracion(entrada, salida) {
+    if (!entrada || !salida) return '—';
+    const [eh,em] = entrada.split(':').map(Number);
+    const [sh,sm] = salida.split(':').map(Number);
+    let mins = (sh*60+sm) - (eh*60+em);
+    if (mins < 0) mins += 24*60;
+    return `${Math.floor(mins/60)}h ${mins%60}m`;
+  },
+
+  openCreate() {
+    document.getElementById('turnoForm').reset();
+    document.getElementById('turnoId').value = '';
+    document.getElementById('turnoModalTitle').textContent = 'Nuevo turno';
+    new bootstrap.Modal(document.getElementById('turnoModal')).show();
+  },
+
+  async openEdit(id) {
+    const res = await API.Turnos.get(id);
+    if (!res.ok) return Utils.toast('Error', 'error');
+    const t = res.data;
+    document.getElementById('turnoId').value        = t.id_turno;
+    document.getElementById('turnoNombre').value    = t.nombre;
+    document.getElementById('turnoEntrada').value   = t.hora_entrada?.substring(0,5);
+    document.getElementById('turnoSalida').value    = t.hora_salida?.substring(0,5);
+    document.getElementById('turnoTolerancia').value= t.tolerancia_min;
+    document.getElementById('turnoDesc').value      = t.descripcion || '';
+    document.getElementById('turnoModalTitle').textContent = 'Editar turno';
+    new bootstrap.Modal(document.getElementById('turnoModal')).show();
+  },
+
+  async save() {
+    const id = document.getElementById('turnoId').value;
+    const data = {
+      nombre:        document.getElementById('turnoNombre').value.trim(),
+      hora_entrada:  document.getElementById('turnoEntrada').value,
+      hora_salida:   document.getElementById('turnoSalida').value,
+      tolerancia_min:+document.getElementById('turnoTolerancia').value,
+      descripcion:   document.getElementById('turnoDesc').value.trim(),
+    };
+    const res = id ? await API.Turnos.update(id, data) : await API.Turnos.create(data);
+    if (res.ok) {
+      Utils.toast(id ? 'Turno actualizado' : 'Turno creado');
+      bootstrap.Modal.getInstance(document.getElementById('turnoModal'))?.hide();
+      this.load();
+    } else Utils.toast(res.error, 'error');
+  },
+
+  toggle(id, activo) {
+    Utils.confirm(activo ? '¿Desactivar turno?' : '¿Activar turno?', async () => {
+      const res = await API.Turnos.toggle(id, activo ? 0 : 1);
+      if (res.ok) { Utils.toast('Actualizado'); this.load(); }
+      else Utils.toast(res.error, 'error');
+    });
+  },
+};
+</script>
+</body>
+</html>

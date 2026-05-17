@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acceso — GoCheck</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/fontawesome/all.min.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+
+<body>
+
+  <div class="login-page">
+    <div class="login-card fade-in-up">
+
+      <div class="login-logo"><i class="fas fa-store"></i></div>
+
+      <h1 style="font-family:var(--font-display);font-size:22px;font-weight:800;text-align:center;margin-bottom:4px">
+        GoCheck</h1>
+      <p
+        style="text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:28px;text-transform:uppercase;letter-spacing:.1em">
+        Sistema de E/S · Abarrotes</p>
+
+      <form id="loginForm" novalidate>
+
+        <div class="mb-4">
+          <label class="form-label" for="username">Usuario</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-user" style="font-size:12px"></i></span>
+            <input type="text" class="form-control" id="username" placeholder="Tu usuario" autocomplete="username"
+              required>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label" for="password">Contraseña</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-lock" style="font-size:12px"></i></span>
+            <input type="password" class="form-control" id="password" placeholder="••••••••"
+              autocomplete="current-password" required>
+            <button type="button" class="input-group-text" id="togglePwd"
+              style="cursor:pointer;background:var(--bg-card)">
+              <i class="fas fa-eye" style="font-size:12px" id="eyeIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="errorAlert" class="mb-3" style="display:none">
+          <div
+            style="background:rgba(255,62,95,.1);border:1px solid rgba(255,62,95,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--accent-red)">
+            <i class="fas fa-times-circle me-2"></i><span id="errorMsg"></span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100" id="loginBtn" style="padding:11px">
+          <i class="fas fa-sign-in-alt"></i> Iniciar sesión
+        </button>
+
+      </form>
+
+      <p style="text-align:center;margin-top:20px;font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">
+        GoCheck — Solo personal autorizado
+      </p>
+    </div>
+  </div>
+
+  <script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="/assets/js/main.js"></script>
+  <script src="/assets/js/api.js"></script>
+  <script>
+
+    // Toggle contraseña
+    document.getElementById('togglePwd').addEventListener('click', () => {
+      const input = document.getElementById('password');
+      const icon = document.getElementById('eyeIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye';
+      }
+    });
+
+    // Formulario de login
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const err = document.getElementById('errorAlert');
+      const msg = document.getElementById('errorMsg');
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!username || !password) {
+        msg.textContent = 'Completa todos los campos.';
+        err.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accediendo...';
+      err.style.display = 'none';
+
+      const res = await API.Auth.login(username, password);
+
+      if (res.ok && (res.data?.token || res.data?.data?.token)) {
+        const token = res.data?.token || res.data?.data?.token;
+        const user = res.data?.user || res.data?.data?.user || { username, rol: 'admin' };
+        localStorage.setItem('auth_token', token);
+        localStorage.setItem('auth_user', JSON.stringify(user));
+        window.location.href = '/pages/dashboard.html';
+      } else {
+        msg.textContent = res.error || 'Credenciales incorrectas.';
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Iniciar sesión';
+      }
+    });
+
+    // Si ya está autenticado, redirigir
+    if (localStorage.getItem('auth_token')) {
+      window.location.href = '/pages/dashboard.html';
+    }
+  </script>
+</body>
+
+</html>

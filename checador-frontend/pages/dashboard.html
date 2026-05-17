@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — GoCheck</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/fontawesome/all.min.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-placeholder"></div>
+
+  <div class="main-content">
+    <div id="navbar-placeholder"></div>
+
+    <div class="page-body">
+
+      <!-- Título -->
+      <div class="page-title-bar">
+        <div>
+          <div class="page-title"><i class="fas fa-chart-line page-icon"></i> Dashboard</div>
+          <div class="page-subtitle" id="dashDate">—</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="Page.load()">
+          <i class="fas fa-sync-alt"></i> Actualizar
+        </button>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="row g-3 mb-4 stagger" id="kpiRow">
+        <div class="col-6 col-lg-3">
+          <div class="stat-card primary">
+            <div class="stat-icon primary"><i class="fas fa-users"></i></div>
+            <div class="stat-value" id="kpiEmpleados">—</div>
+            <div class="stat-label">Empleados Activos</div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="stat-card blue">
+            <div class="stat-icon blue"><i class="fas fa-sign-in-alt"></i></div>
+            <div class="stat-value" id="kpiEntradas">—</div>
+            <div class="stat-label">Entradas Hoy</div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="stat-card orange">
+            <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+            <div class="stat-value" id="kpiRetardos">—</div>
+            <div class="stat-label">Retardos</div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="stat-card red">
+            <div class="stat-icon red"><i class="fas fa-calendar-times"></i></div>
+            <div class="stat-value" id="kpiFaltas">—</div>
+            <div class="stat-label">Faltas</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <!-- Últimas checadas -->
+        <div class="col-12 col-lg-8">
+          <div class="card h-100">
+            <div class="card-header">
+              <div class="card-title"><i class="fas fa-list-alt"></i> Últimas checadas del día</div>
+              <a href="/pages/asistencias.html" class="btn btn-outline btn-sm">Ver todas</a>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-wrapper">
+                <table class="data-table" id="movTable">
+                  <thead>
+                    <tr>
+                      <th>Hora</th>
+                      <th>Empleado</th>
+                      <th>Tipo</th>
+                      <th>Método</th>
+                      <th>Dispositivo</th>
+                      <th>Puesto</th>
+                    </tr>
+                  </thead>
+                  <tbody id="movTbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- No han llegado hoy -->
+        <div class="col-12 col-lg-4">
+          <div class="card h-100">
+            <div class="card-header" style="border-bottom:1px solid rgba(225,29,72,.15)">
+              <div class="card-title" style="color:var(--accent-red)"><i class="fas fa-user-times"></i> Sin registrar entrada</div>
+              <span class="badge bg-danger rounded-pill" id="noLlegadosCount">0</span>
+            </div>
+            <div class="card-body p-0" style="max-height: 480px; overflow-y: auto;">
+              <ul class="list-group list-group-flush" id="noLlegadosList"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-body -->
+    <div id="footer-placeholder"></div>
+  </div>
+</div>
+
+<script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script>
+const Page = {
+  async init() {
+    document.getElementById('dashDate').textContent =
+      new Date().toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    this.load();
+    // Auto-refresh cada 60 s
+    setInterval(() => this.load(), 60000);
+  },
+
+  async load() {
+    await Promise.all([this.loadKPIs(), this.loadMovimientos(), this.loadNoLlegados()]);
+  },
+
+  async loadKPIs() {
+    const res = await API.Dashboard.kpis();
+    if (!res.ok) return;
+    const d = res.data || {};
+    document.getElementById('kpiEmpleados').textContent = d.empleados_activos ?? '—';
+    document.getElementById('kpiEntradas').textContent  = d.entradas_hoy      ?? '—';
+    document.getElementById('kpiRetardos').textContent  = d.retardos          ?? '—';
+    document.getElementById('kpiFaltas').textContent    = d.faltas            ?? '—';
+  },
+
+  async loadMovimientos() {
+    Utils.showLoader('movTbody', 6);
+    const res = await API.Dashboard.movimientosHoy();
+    if (!res.ok || !res.data?.length) {
+      Utils.emptyState('movTbody', 6, 'Sin movimientos registrados hoy');
+      return;
+    }
+    const rows = res.data.map(m => {
+      const isRetardo = m.es_retardo === 1;
+      const rowStyle = isRetardo 
+        ? 'style="background-color: rgba(245, 158, 11, 0.05); border-left: 3px solid var(--accent-orange);"' 
+        : '';
+      return `
+        <tr ${rowStyle}>
+          <td class="text-mono" style="font-size:12px;color:var(--text-secondary)">${Utils.formatTime(m.fecha_hora)}</td>
+          <td>
+            <div class="emp-cell">
+              <div class="emp-avatar">${Utils.initials(m.nombre_completo)}</div>
+              <div>
+                <div class="emp-name">${m.nombre_completo}</div>
+                <div class="emp-num">#${m.numero_empleado}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            ${isRetardo 
+              ? `<span class="badge-status bs-retardo">Retardo</span>` 
+              : Utils.tipoMovimientoBadge(m.tipo_clave)}
+          </td>
+          <td>${Utils.metodoBadge(m.metodo_registro)}</td>
+          <td style="font-size:12px;color:var(--text-secondary)">${m.dispositivo || '—'}</td>
+          <td style="font-size:12px">${m.puesto}</td>
+        </tr>
+      `;
+    }).join('');
+    document.getElementById('movTbody').innerHTML = rows;
+  },
+
+  async loadNoLlegados() {
+    const listEl = document.getElementById('noLlegadosList');
+    listEl.innerHTML = '';
+    const res = await API.Dashboard.noLlegados();
+    if (!res.ok) return;
+
+    document.getElementById('noLlegadosCount').textContent = res.data?.length || 0;
+
+    if (!res.data?.length) {
+      listEl.innerHTML = `
+        <div class="text-center py-5 text-muted" style="font-family:var(--font-mono);font-size:11px">
+          <i class="fas fa-check-circle text-success mb-2" style="font-size:26px;display:block"></i>
+          TODOS REGISTRARON ENTRADA
+        </div>
+      `;
+      return;
+    }
+
+    const rows = res.data.map(e => `
+      <li class="list-group-item d-flex align-items-center gap-3 py-3" style="background:transparent;border-bottom:1px solid var(--border-light)">
+        <div class="emp-avatar" style="background:rgba(225,29,72,0.08);color:var(--accent-red);font-weight:700;border:1px solid rgba(225,29,72,0.15);width:32px;height:32px;font-size:11px">
+          ${Utils.initials(e.nombre_completo)}
+        </div>
+        <div class="flex-grow-1 min-w-0" style="text-align:left">
+          <div class="emp-name" style="font-weight:500;font-size:13px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.nombre_completo}</div>
+          <div class="emp-num" style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">#${e.numero_empleado} · ${e.puesto}</div>
+        </div>
+        <span class="badge" style="background:rgba(225,29,72,0.08);color:var(--accent-red);font-size:9px;font-family:var(--font-mono)">FALTA</span>
+      </li>
+    `).join('');
+    listEl.innerHTML = rows;
+  },
+};
+</script>
+</body>
+</html>

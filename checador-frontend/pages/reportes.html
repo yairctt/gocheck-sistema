@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reportes — GoCheck</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/fontawesome/all.min.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-placeholder"></div>
+  <div class="main-content">
+    <div id="navbar-placeholder"></div>
+    <div class="page-body">
+
+      <div class="page-title-bar">
+        <div>
+          <div class="page-title"><i class="fas fa-chart-pie page-icon"></i> Reportes</div>
+          <div class="page-subtitle">Resumen diario de asistencia — v_resumen_diario</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="Page.exportCSV()">
+          <i class="fas fa-file-csv"></i> Exportar CSV
+        </button>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filter-bar mb-3">
+        <input type="date" class="form-control" id="rFechaIni" style="max-width:160px">
+        <input type="date" class="form-control" id="rFechaFin" style="max-width:160px">
+        <select class="form-select" id="rDep" style="max-width:170px">
+          <option value="">Departamento</option>
+        </select>
+        <select class="form-select" id="rIncidencia" style="max-width:180px">
+          <option value="">Incidencia</option>
+          <option value="NORMAL">Normal</option>
+          <option value="RETARDO">Retardo</option>
+          <option value="FALTA">Falta</option>
+          <option value="PERMISO">Permiso</option>
+          <option value="VACACIONES">Vacaciones</option>
+          <option value="INCAPACIDAD">Incapacidad</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="Page.load()">
+          <i class="fas fa-filter"></i> Consultar
+        </button>
+      </div>
+
+      <!-- Tabla -->
+      <div class="card">
+        <div class="card-body p-0">
+          <div class="table-wrapper">
+            <table class="data-table" id="repTable">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Empleado</th>
+                  <th>Puesto</th>
+                  <th>Turno</th>
+                  <th>Entrada</th>
+                  <th>Salida</th>
+                  <th>Trabajadas</th>
+                  <th>Retardo</th>
+                  <th>Incidencia</th>
+                </tr>
+              </thead>
+              <tbody id="repTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div id="footer-placeholder"></div>
+  </div>
+</div>
+
+<script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script>
+const Page = {
+  async init() {
+    const deps = await API.Catalogos.departamentos();
+    if (deps.ok) Utils.fillSelect('rDep', deps.data||[], 'id_departamento', 'nombre', 'Departamento');
+    this.load();
+  },
+
+  buildParams() {
+    return Utils.buildQuery({
+      fecha_ini:       document.getElementById('rFechaIni').value,
+      fecha_fin:       document.getElementById('rFechaFin').value,
+      id_departamento: document.getElementById('rDep').value,
+      incidencia:      document.getElementById('rIncidencia').value,
+    });
+  },
+
+  async load() {
+    Utils.showLoader('repTbody', 9);
+    const res = await API.Reportes.resumen(this.buildParams());
+    if (!res.ok || !res.data) { Utils.emptyState('repTbody', 9); return; }
+    const list = res.data?.data || res.data || [];
+    if (!list.length) { Utils.emptyState('repTbody', 9); return; }
+
+    document.getElementById('repTbody').innerHTML = list.map(r => `
+      <tr>
+        <td class="text-mono" style="font-size:11px">${r.fecha||'—'}</td>
+        <td>
+          <div class="emp-cell">
+            <div class="emp-avatar">${Utils.initials(r.nombre_completo||'?')}</div>
+            <div>
+              <div class="emp-name">${r.nombre_completo}</div>
+              <div class="emp-num">#${r.numero_empleado}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size:12.5px">${r.puesto||'—'}</td>
+        <td style="font-size:12.5px">${r.turno||'—'}</td>
+        <td class="text-mono" style="font-size:12px">${r.hora_entrada_real||'—'}</td>
+        <td class="text-mono" style="font-size:12px">${r.hora_salida_real||'—'}</td>
+        <td class="text-mono" style="font-size:12px;color:var(--accent-primary)">${Utils.minutesToHHMM(r.minutos_trabajados)}</td>
+        <td class="text-mono" style="font-size:12px;color:${r.minutos_retardo>0?'var(--accent-orange)':'var(--text-muted)'}">${r.minutos_retardo||0} min</td>
+        <td>${Utils.incidenciaBadge(r.incidencia)}</td>
+      </tr>
+    `).join('');
+  },
+
+  exportCSV() {
+    Utils.exportTableToCSV('repTable', `reporte_asistencias_${Utils.todayISO()}.csv`);
+  },
+};
+</script>
+</body>
+</html>

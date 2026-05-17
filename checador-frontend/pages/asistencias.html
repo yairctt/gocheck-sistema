@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asistencias — GoCheck</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/fontawesome/all.min.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-placeholder"></div>
+  <div class="main-content">
+    <div id="navbar-placeholder"></div>
+    <div class="page-body">
+
+      <div class="page-title-bar">
+        <div>
+          <div class="page-title"><i class="fas fa-calendar-check page-icon"></i> Asistencias</div>
+          <div class="page-subtitle">Monitor de movimientos y checadas</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="Page.load()">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filter-bar">
+        <div class="search-input-wrap">
+          <i class="fas fa-search"></i>
+          <input type="text" class="form-control" id="fSearch" placeholder="Buscar empleado…">
+        </div>
+        <input type="date" class="form-control" id="fFecha" style="max-width:160px">
+        <select class="form-select" id="fDep" style="max-width:170px">
+          <option value="">Departamento</option>
+        </select>
+        <select class="form-select" id="fTipo" style="max-width:160px">
+          <option value="">Tipo de movimiento</option>
+          <option value="ENTRADA">Entrada</option>
+          <option value="SALIDA">Salida</option>
+          <option value="SALIDA_COMIDA">Salida comida</option>
+          <option value="REGRESO_COMIDA">Regreso comida</option>
+          <option value="PERMISO">Permiso</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="Page.load()">
+          <i class="fas fa-filter"></i> Filtrar
+        </button>
+      </div>
+
+      <!-- Contadores rápidos -->
+      <div class="row g-2 mb-3" id="sumRow">
+        <div class="col-6 col-md-3">
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Total</div>
+            <div style="font-family:var(--font-display);font-size:22px;font-weight:800" id="cntTotal">—</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div style="background:rgba(62,142,255,.06);border:1px solid rgba(62,142,255,.2);border-radius:10px;padding:12px 14px">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.07em">Entradas</div>
+            <div style="font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--accent-blue)" id="cntEntradas">—</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div style="background:rgba(155,93,255,.06);border:1px solid rgba(155,93,255,.2);border-radius:10px;padding:12px 14px">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent-purple);text-transform:uppercase;letter-spacing:.07em">Salidas</div>
+            <div style="font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--accent-purple)" id="cntSalidas">—</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div style="background:rgba(255,124,62,.06);border:1px solid rgba(255,124,62,.2);border-radius:10px;padding:12px 14px">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent-orange);text-transform:uppercase;letter-spacing:.07em">Otros</div>
+            <div style="font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--accent-orange)" id="cntOtros">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="card">
+        <div class="card-body p-0">
+          <div class="table-wrapper">
+            <table class="data-table" id="asisTable">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Empleado</th>
+                  <th>Tipo</th>
+                  <th>Método</th>
+                  <th>Dispositivo</th>
+                  <th>Departamento</th>
+                  <th>Puesto</th>
+                </tr>
+              </thead>
+              <tbody id="asisTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div id="footer-placeholder"></div>
+  </div>
+</div>
+
+<script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script>
+const Page = {
+  async init() {
+    const deps = await API.Catalogos.departamentos();
+    if (deps.ok) Utils.fillSelect('fDep', deps.data||[], 'id_departamento', 'nombre', 'Departamento');
+    this.load();
+    document.getElementById('fSearch').addEventListener('keyup', e => { if(e.key==='Enter') this.load(); });
+  },
+
+  buildParams() {
+    return Utils.buildQuery({
+      search:     document.getElementById('fSearch').value,
+      fecha:      document.getElementById('fFecha').value,
+      id_departamento: document.getElementById('fDep').value,
+      tipo:       document.getElementById('fTipo').value,
+    });
+  },
+
+  async load() {
+    Utils.showLoader('asisTbody', 7);
+    const res = await API.Asistencias.list(this.buildParams());
+    if (!res.ok || !res.data) { Utils.emptyState('asisTbody', 7); return; }
+    const list = res.data?.data || res.data || [];
+
+    // Contadores
+    let entradas = 0, salidas = 0, otros = 0;
+    list.forEach(m => {
+      if (m.tipo_clave === 'ENTRADA')      entradas++;
+      else if (m.tipo_clave === 'SALIDA')  salidas++;
+      else                                 otros++;
+    });
+    document.getElementById('cntTotal').textContent   = list.length;
+    document.getElementById('cntEntradas').textContent = entradas;
+    document.getElementById('cntSalidas').textContent  = salidas;
+    document.getElementById('cntOtros').textContent    = otros;
+
+    if (!list.length) { Utils.emptyState('asisTbody', 7); return; }
+
+    document.getElementById('asisTbody').innerHTML = list.map(m => `
+      <tr>
+        <td class="text-mono" style="font-size:12px">${Utils.formatTime(m.fecha_hora)}</td>
+        <td>
+          <div class="emp-cell">
+            <div class="emp-avatar">${Utils.initials(m.nombre_completo||'?')}</div>
+            <div>
+              <div class="emp-name">${m.nombre_completo}</div>
+              <div class="emp-num">#${m.numero_empleado}</div>
+            </div>
+          </div>
+        </td>
+        <td>${Utils.tipoMovimientoBadge(m.tipo_clave)}</td>
+        <td>${Utils.metodoBadge(m.metodo_registro)}</td>
+        <td style="font-size:12px;color:var(--text-secondary)">${m.dispositivo||'—'}</td>
+        <td style="font-size:12px">${m.departamento||'—'}</td>
+        <td style="font-size:12px">${m.puesto||'—'}</td>
+      </tr>
+    `).join('');
+  },
+};
+</script>
+</body>
+</html>

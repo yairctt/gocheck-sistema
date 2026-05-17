@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Terminal — GoCheck</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/fontawesome/all.min.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <!-- QR scanner lib -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+</head>
+
+<body>
+
+  <div class="checador-page">
+
+    <!-- Logo y estado de la tienda -->
+    <div style="text-align:center;margin-bottom:20px">
+      <div
+        style="display:inline-flex;align-items:center;gap:10px;padding:8px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:20px">
+        <i class="fas fa-store" style="color:var(--accent-primary)"></i>
+        <span style="font-family:var(--font-display);font-weight:700;font-size:14px">Abarrotes</span>
+      </div>
+    </div>
+
+    <div class="checador-card">
+
+      <!-- Encabezado con reloj -->
+      <div class="checador-header">
+        <div class="checador-clock" id="checClock">00:00</div>
+        <div class="checador-date" id="checDate"></div>
+      </div>
+
+      <div class="checador-body">
+
+        <!-- Tabs de método de identificación -->
+        <div class="method-tabs">
+          <button class="method-tab active" id="tabQR" onclick="Checador.setMethod('qr')">
+            <i class="fas fa-qrcode"></i> QR
+          </button>
+          <button class="method-tab" id="tabPin" onclick="Checador.setMethod('pin')">
+            <i class="fas fa-keyboard"></i> PIN
+          </button>
+        </div>
+
+        <!-- Panel QR -->
+        <div id="panelQR">
+          <div id="qrReaderContainer"
+            style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px;min-height:180px;display:flex;align-items:center;justify-content:center">
+            <div id="qrReader" style="width:100%"></div>
+            <div id="qrPlaceholder" style="text-align:center;padding:24px;color:var(--text-muted)">
+              <i class="fas fa-qrcode"
+                style="font-size:40px;margin-bottom:8px;display:block;color:var(--border-light)"></i>
+              <div style="font-family:var(--font-mono);font-size:12px">Cargando lector QR…</div>
+            </div>
+          </div>
+          <p style="text-align:center;font-size:12px;color:var(--text-muted);font-family:var(--font-mono)">
+            Apunta tu código QR a la cámara
+          </p>
+        </div>
+
+        <!-- Panel PIN -->
+        <div id="panelPin" style="display:none">
+          <div style="margin-bottom:12px">
+            <label class="form-label">Número de empleado o PIN</label>
+            <input type="text" class="form-control" id="pinInput" placeholder="Ingresa tu número…" maxlength="20"
+              style="font-family:var(--font-mono);font-size:18px;text-align:center;letter-spacing:.2em"
+              autocomplete="off">
+          </div>
+          <button class="btn btn-primary w-100" style="margin-bottom:8px" onclick="Checador.identificarPin()">
+            <i class="fas fa-search"></i> Identificar
+          </button>
+        </div>
+
+
+
+        <!-- Display del empleado identificado -->
+        <div id="empDisplay" class="emp-display mt-3">
+          <div class="emp-display-avatar" id="empDisplayAvatar">?</div>
+          <div class="emp-display-name" id="empDisplayName">—</div>
+          <div class="emp-display-sub" id="empDisplaySub">—</div>
+        </div>
+
+        <!-- Botones de checada (visibles solo tras identificación) -->
+        <div id="actionButtons" style="display:none;margin-top:14px">
+          <div
+            style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;text-align:center">
+            Selecciona tu tipo de movimiento
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="checada-btn entrada" onclick="Checador.registrar('ENTRADA')">
+              <i class="fas fa-sign-in-alt"></i>
+              <div style="text-align:left">
+                <div>Entrada</div>
+                <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-muted);font-weight:400">Inicio
+                  de jornada</div>
+              </div>
+            </button>
+            <button class="checada-btn salida" onclick="Checador.registrar('SALIDA')">
+              <i class="fas fa-sign-out-alt"></i>
+              <div style="text-align:left">
+                <div>Salida</div>
+                <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-muted);font-weight:400">Fin de
+                  jornada</div>
+              </div>
+            </button>
+            <button class="checada-btn s-comida" onclick="Checador.registrar('SALIDA_COMIDA')">
+              <i class="fas fa-utensils"></i>
+              <div style="text-align:left">
+                <div>Salida a comida</div>
+                <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-muted);font-weight:400">Salida
+                  temporal para alimentos</div>
+              </div>
+            </button>
+            <button class="checada-btn r-comida" onclick="Checador.registrar('REGRESO_COMIDA')">
+              <i class="fas fa-undo"></i>
+              <div style="text-align:left">
+                <div>Regreso de comida</div>
+                <div style="font-size:11px;font-family:var(--font-mono);color:var(--text-muted);font-weight:400">Vuelta
+                  al puesto de trabajo</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Confirmación -->
+        <div class="confirm-banner mt-3" id="confirmBanner">
+          <i class="fas fa-check-circle"></i>
+          <p id="confirmMsg">Checada registrada correctamente</p>
+          <span id="confirmSub"></span>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="margin-top:16px;text-align:center;font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">
+      GoCheck v2.1 · Terminal de checador
+    </div>
+
+  </div>
+
+  <script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="/assets/js/main.js"></script>
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/utils.js"></script>
+  <script>
+
+    const Checador = {
+      method: 'qr',
+      qrToken: null,
+      empleadoInfo: null,
+      qrScanner: null,
+      resetTimer: null,
+
+      // ── Reloj ──
+      initClock() {
+        const clock = document.getElementById('checClock');
+        const date = document.getElementById('checDate');
+        const tick = () => {
+          const now = new Date();
+          clock.textContent = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          date.textContent = now.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
+        };
+        tick();
+        setInterval(tick, 1000);
+      },
+
+      // ── Método de identificación ──
+      setMethod(m) {
+        this.method = m;
+        // Usar los nombres exactos de los IDs
+        const tabs = { qr: 'QR', pin: 'Pin' };
+
+        Object.entries(tabs).forEach(([key, suffix]) => {
+          document.getElementById(`tab${suffix}`).classList.toggle('active', key === m);
+          document.getElementById(`panel${suffix}`).style.display = (key === m) ? 'block' : 'none';
+        });
+
+        this.resetState();
+        if (m === 'qr') this.initQRScanner();
+        else this.destroyQRScanner();
+      },
+
+      // ── QR Scanner ──
+      initQRScanner() {
+        document.getElementById('qrPlaceholder').style.display = 'none';
+        if (this.qrScanner) return;
+        this.qrScanner = new Html5Qrcode('qrReader');
+        this.qrScanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 200, height: 200 } },
+          (decodedText) => this.onQRScan(decodedText),
+          () => { }
+        ).catch(() => {
+          document.getElementById('qrPlaceholder').style.display = 'block';
+          document.getElementById('qrPlaceholder').innerHTML = `
+        <i class="fas fa-camera-slash" style="font-size:30px;margin-bottom:8px;display:block"></i>
+        <div style="font-family:var(--font-mono);font-size:11px">No se pudo acceder a la cámara.<br>Usa el método PIN.</div>`;
+        });
+      },
+
+      destroyQRScanner() {
+        if (this.qrScanner) {
+          this.qrScanner.stop().catch(() => { });
+          this.qrScanner = null;
+        }
+      },
+
+      async onQRScan(token) {
+        if (this.qrToken) return; // Ya identificado
+        this.destroyQRScanner();
+        await this.identificar(token, 'qr');
+      },
+
+      // ── PIN ──
+      async identificarPin() {
+        const pin = document.getElementById('pinInput').value.trim();
+        if (!pin) return Utils.toast('Ingresa tu número de empleado', 'error');
+        await this.identificar(pin, 'pin');
+      },
+
+
+
+      // ── Identificación contra API ──
+      async identificar(token, method) {
+        const res = await API.Checador.identify(token, method);
+        if (!res.ok || !res.data) {
+          Utils.toast(res.error || 'Empleado no encontrado', 'error');
+          this.resetState();
+          if (method === 'qr') setTimeout(() => this.initQRScanner(), 2000);
+          return;
+        }
+        this.qrToken = res.data.qr_token || token;
+        this.empleadoInfo = res.data;
+        this.showEmpleado(res.data);
+      },
+
+      showEmpleado(emp) {
+        const display = document.getElementById('empDisplay');
+        const initials = Utils.initials(emp.nombre_completo || emp.nombre || '?');
+        document.getElementById('empDisplayAvatar').textContent = initials;
+        document.getElementById('empDisplayName').textContent = emp.nombre_completo || emp.nombre || '—';
+        document.getElementById('empDisplaySub').textContent = `#${emp.numero_empleado || ''} · ${emp.puesto || ''}`;
+
+        // Habilitar todos los botones primero y remover clase 'already-checked'
+        const btnEntrada = document.querySelector('.checada-btn.entrada');
+        const btnSalida = document.querySelector('.checada-btn.salida');
+        const btnSComida = document.querySelector('.checada-btn.s-comida');
+        const btnRComida = document.querySelector('.checada-btn.r-comida');
+
+        [btnEntrada, btnSalida, btnSComida, btnRComida].forEach(btn => {
+          if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('already-checked');
+          }
+        });
+
+        // Deshabilitar los movimientos ya realizados hoy
+        if (emp.movimientos_hoy && Array.isArray(emp.movimientos_hoy)) {
+          if (emp.movimientos_hoy.includes('ENTRADA') && btnEntrada) {
+            btnEntrada.disabled = true;
+            btnEntrada.classList.add('already-checked');
+          }
+          if (emp.movimientos_hoy.includes('SALIDA') && btnSalida) {
+            btnSalida.disabled = true;
+            btnSalida.classList.add('already-checked');
+          }
+          if (emp.movimientos_hoy.includes('SALIDA_COMIDA') && btnSComida) {
+            btnSComida.disabled = true;
+            btnSComida.classList.add('already-checked');
+          }
+          if (emp.movimientos_hoy.includes('REGRESO_COMIDA') && btnRComida) {
+            btnRComida.disabled = true;
+            btnRComida.classList.add('already-checked');
+          }
+        }
+
+        display.classList.add('visible');
+        document.getElementById('actionButtons').style.display = 'block';
+        document.getElementById('confirmBanner').classList.remove('show');
+      },
+
+      // ── Registrar checada ──
+      async registrar(tipo) {
+        if (!this.qrToken) { Utils.toast('Primero identifícate', 'error'); return; }
+
+        const dispositivo = `Terminal-${window.location.hostname}`;
+        const res = await API.Checador.registrar({
+          qr_token: this.qrToken,
+          tipo_movimiento: tipo,
+          dispositivo,
+          metodo_registro: this.method,
+        });
+
+        if (res.ok) {
+          this.showConfirmation(tipo);
+        } else {
+          Utils.toast(res.error || 'Error al registrar checada', 'error');
+        }
+      },
+
+      showConfirmation(tipo) {
+        const labels = {
+          ENTRADA: 'Entrada registrada ✓',
+          SALIDA: 'Salida registrada ✓',
+          SALIDA_COMIDA: 'Salida a comida registrada ✓',
+          REGRESO_COMIDA: 'Regreso de comida registrado ✓',
+        };
+        const banner = document.getElementById('confirmBanner');
+        const time = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('confirmMsg').textContent = labels[tipo] || 'Checada registrada correctamente';
+        document.getElementById('confirmSub').textContent = `${time} · ${this.empleadoInfo?.nombre_completo || ''}`;
+        document.getElementById('actionButtons').style.display = 'none';
+        banner.classList.add('show');
+
+        // Reset automático a los 5 segundos
+        clearTimeout(this.resetTimer);
+        this.resetTimer = setTimeout(() => this.resetState(true), 5000);
+      },
+
+      resetState(restartScanner = false) {
+        this.qrToken = null;
+        this.empleadoInfo = null;
+        document.getElementById('empDisplay').classList.remove('visible');
+        document.getElementById('actionButtons').style.display = 'none';
+        document.getElementById('confirmBanner').classList.remove('show');
+        document.getElementById('pinInput').value = '';
+        if (restartScanner && this.method === 'qr') this.initQRScanner();
+      },
+
+      init() {
+        this.initClock();
+        this.setMethod('qr');
+        // Enter en PIN
+        document.getElementById('pinInput').addEventListener('keyup', e => {
+          if (e.key === 'Enter') this.identificarPin();
+        });
+      },
+    };
+
+    document.addEventListener('DOMContentLoaded', () => Checador.init());
+  </script>
+</body>
+
+</html>

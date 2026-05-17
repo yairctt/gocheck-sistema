@@ -1,0 +1,72 @@
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon"><i class="fas fa-store"></i></div>
+    <div class="brand-text">
+      <span class="brand-name">GoCheck</span>
+      <span class="brand-sub">Abarrotes</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section">Principal</span>
+
+    <a href="/pages/dashboard.html" class="nav-link" data-page="dashboard.html">
+      <i class="fas fa-chart-line"></i> Dashboard
+    </a>
+
+    <span class="nav-section">Recursos Humanos</span>
+
+    <a href="/pages/empleados.html" class="nav-link" data-page="empleados.html">
+      <i class="fas fa-users"></i> Empleados
+    </a>
+
+    <a href="/pages/turnos.html" class="nav-link" data-page="turnos.html">
+      <i class="fas fa-clock"></i> Turnos
+    </a>
+
+    <span class="nav-section">Control</span>
+
+    <a href="/pages/asistencias.html" class="nav-link" data-page="asistencias.html">
+      <i class="fas fa-calendar-check"></i> Asistencias
+    </a>
+
+    <a href="/pages/solicitudes.html" class="nav-link" data-page="solicitudes.html">
+      <i class="fas fa-inbox"></i> Solicitudes
+      <span class="badge bg-warning text-dark ms-auto" id="solPendientes" style="display:none">0</span>
+    </a>
+
+    <a href="/pages/reportes.html" class="nav-link" data-page="reportes.html">
+      <i class="fas fa-chart-pie"></i> Reportes
+    </a>
+
+    <span class="nav-section">Sistema</span>
+
+    <a href="/pages/usuarios.html" class="nav-link" data-page="usuarios.html">
+      <i class="fas fa-user-shield"></i> Usuarios
+    </a>
+
+    <a href="/pages/bitacora.html" class="nav-link" data-page="bitacora.html">
+      <i class="fas fa-shield-alt"></i> Bitácora
+    </a>
+
+    <div class="divider mx-3"></div>
+
+    <a href="/pages/checador.html" class="nav-link" data-page="checador.html" target="_blank">
+      <i class="fas fa-qrcode"></i> Terminal GoCheck
+      <i class="fas fa-external-link-alt ms-auto" style="font-size:10px;opacity:.4"></i>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-card" id="logoutBtn" title="Cerrar sesión">
+      <div class="user-avatar" id="sidebarAvatar">AD</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebarUserName">Admin</div>
+        <div class="user-role" id="sidebarUserRole">superadmin</div>
+      </div>
+      <i class="fas fa-sign-out-alt" style="color:var(--text-muted);font-size:13px;margin-left:auto"></i>
+    </div>
+  </div>
+</aside>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>

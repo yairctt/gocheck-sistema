@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Empleados — GoCheck</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/fontawesome/all.min.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <!-- QR generation lib -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-placeholder"></div>
+  <div class="main-content">
+    <div id="navbar-placeholder"></div>
+    <div class="page-body">
+
+      <!-- Título -->
+      <div class="page-title-bar">
+        <div>
+          <div class="page-title"><i class="fas fa-users page-icon"></i> Empleados</div>
+          <div class="page-subtitle">Gestión del personal de la tienda</div>
+        </div>
+        <button class="btn btn-primary" onclick="Page.openCreate()">
+          <i class="fas fa-plus"></i> Nuevo empleado
+        </button>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filter-bar mb-3">
+        <div class="search-input-wrap">
+          <i class="fas fa-search"></i>
+          <input type="text" class="form-control" id="filterSearch" placeholder="Buscar empleado…">
+        </div>
+        <select class="form-select" id="filterDep" style="max-width:180px">
+          <option value="">Departamento</option>
+        </select>
+        <select class="form-select" id="filterEstado" style="max-width:150px">
+          <option value="">Estado</option>
+          <option value="1">Activo</option>
+          <option value="0">Inactivo</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="Page.loadEmpleados()">
+          <i class="fas fa-filter"></i> Filtrar
+        </button>
+      </div>
+
+      <!-- Tabla -->
+      <div class="card">
+        <div class="card-body p-0">
+          <div class="table-wrapper">
+            <table class="data-table" id="empTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Empleado</th>
+                  <th>Puesto</th>
+                  <th>Departamento</th>
+                  <th>Turno</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="empTbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card-body pt-0">
+          <nav><ul class="pagination pagination-sm mb-0" id="empPagination"></ul></nav>
+        </div>
+      </div>
+
+    </div>
+    <div id="footer-placeholder"></div>
+  </div>
+</div>
+
+<!-- Modal Crear/Editar -->
+<div class="modal fade" id="empModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="empModalTitle">Nuevo empleado</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="empForm" novalidate>
+          <input type="hidden" id="empId">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Nombre</label>
+              <input type="text" class="form-control" id="empNombre" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Apellido paterno</label>
+              <input type="text" class="form-control" id="empApPat" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Apellido materno</label>
+              <input type="text" class="form-control" id="empApMat">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Número de empleado</label>
+              <input type="text" class="form-control" id="empNumero" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Teléfono</label>
+              <input type="tel" class="form-control" id="empTelefono">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Correo</label>
+              <input type="email" class="form-control" id="empCorreo">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Puesto</label>
+              <select class="form-select" id="empPuesto" required></select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Turno base</label>
+              <select class="form-select" id="empTurno" required></select>
+            </div>
+            <input type="hidden" id="empMetodo" value="qr">
+            <div class="col-md-4">
+              <label class="form-label">Fecha de ingreso</label>
+              <input type="date" class="form-control" id="empFechaIngreso" required>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">URL de foto</label>
+              <input type="url" class="form-control" id="empFoto" placeholder="https://...">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" id="empSaveBtn" onclick="Page.save()">
+          <i class="fas fa-save"></i> Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal QR -->
+<div class="modal fade" id="qrModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="fas fa-qrcode text-primary me-2"></i>Código QR</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body qr-modal-body">
+        <div class="qr-frame" id="qrContainer"></div>
+        <p id="qrName" style="font-family:var(--font-display);font-weight:700;margin-bottom:4px"></p>
+        <p id="qrNum" class="text-mono" style="font-size:11px;color:var(--text-muted)"></p>
+        <button class="btn btn-outline btn-sm mt-2" onclick="Page.printQr()">
+          <i class="fas fa-print"></i> Imprimir
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Horario -->
+<div class="modal fade" id="horarioModal" tabindex="-1">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="fas fa-calendar-alt text-primary me-2"></i>Horario semanal</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="horarioBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" onclick="Page.saveHorario()">
+          <i class="fas fa-save"></i> Guardar horario
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script>
+const Page = {
+  currentPage: 1,
+  perPage:     15,
+  horarioEmpId: null,
+
+  async init() {
+    await this.loadCatalogos();
+    this.loadEmpleados();
+    document.getElementById('filterSearch').addEventListener('keyup', e => {
+      if (e.key === 'Enter') this.loadEmpleados();
+    });
+  },
+
+  async loadCatalogos() {
+    const [deps, puestos, turnos] = await Promise.all([
+      API.Catalogos.departamentos(),
+      API.Catalogos.puestos(),
+      API.Catalogos.turnos(),
+    ]);
+    if (deps.ok)    Utils.fillSelect('filterDep', deps.data || [],   'id_departamento', 'nombre', 'Departamento');
+    if (puestos.ok) Utils.fillSelect('empPuesto', puestos.data || [], 'id_puesto',       'nombre', 'Seleccionar puesto');
+    if (turnos.ok)  Utils.fillSelect('empTurno',  turnos.data || [], 'id_turno',        'nombre', 'Seleccionar turno');
+  },
+
+  buildParams() {
+    return Utils.buildQuery({
+      search: document.getElementById('filterSearch').value,
+      id_departamento: document.getElementById('filterDep').value,
+      activo: document.getElementById('filterEstado').value,
+      page:   this.currentPage,
+      per_page: this.perPage,
+    });
+  },
+
+  async loadEmpleados() {
+    Utils.showLoader('empTbody', 7);
+    const res = await API.Empleados.list(this.buildParams());
+    if (!res.ok) { Utils.emptyState('empTbody', 7, 'Error al cargar empleados'); return; }
+    const list = res.data?.data || res.data || [];
+    if (!list.length) { Utils.emptyState('empTbody', 7); return; }
+
+    document.getElementById('empTbody').innerHTML = list.map(e => `
+      <tr>
+        <td class="text-mono" style="font-size:11px;color:var(--text-muted)">${e.numero_empleado}</td>
+        <td>
+          <div class="emp-cell">
+            <div class="emp-avatar">${Utils.initials(e.nombre + ' ' + e.apellido_paterno)}</div>
+            <div>
+              <div class="emp-name">${e.nombre} ${e.apellido_paterno} ${e.apellido_materno||''}</div>
+              <div class="emp-num">${e.correo||''}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size:12.5px">${e.puesto?.nombre || e.id_puesto}</td>
+        <td style="font-size:12.5px">${e.departamento?.nombre || '—'}</td>
+        <td style="font-size:12.5px">${e.turno?.nombre || e.id_turno}</td>
+        <td>${Utils.activoBadge(e.activo)}</td>
+        <td>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button class="btn btn-outline btn-icon btn-sm" title="Editar" onclick="Page.openEdit(${e.id_empleado})">
+              <i class="fas fa-pencil"></i>
+            </button>
+            <button class="btn btn-outline btn-icon btn-sm" title="Horario" onclick="Page.openHorario(${e.id_empleado},'${e.nombre}')">
+              <i class="fas fa-calendar-alt"></i>
+            </button>
+            <button class="btn btn-outline btn-icon btn-sm" title="QR" onclick="Page.openQR(${e.id_empleado},'${e.nombre} ${e.apellido_paterno}','${e.numero_empleado}')">
+              <i class="fas fa-qrcode"></i>
+            </button>
+            <button class="btn btn-danger-outline btn-icon btn-sm" title="${e.activo?'Desactivar':'Activar'}" onclick="Page.toggleEstado(${e.id_empleado},${e.activo})">
+              <i class="fas fa-${e.activo?'ban':'check'}"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  },
+
+  openCreate() {
+    document.getElementById('empForm').reset();
+    document.getElementById('empId').value = '';
+    document.getElementById('empNumero').value = 'Autogenerado';
+    document.getElementById('empNumero').disabled = true;
+    document.getElementById('empMetodo').value = 'qr';
+    document.getElementById('empModalTitle').textContent = 'Nuevo empleado';
+    new bootstrap.Modal(document.getElementById('empModal')).show();
+  },
+
+  async openEdit(id) {
+    const res = await API.Empleados.get(id);
+    if (!res.ok) return Utils.toast('Error al cargar empleado', 'error');
+    const e = res.data;
+    document.getElementById('empId').value       = e.id_empleado;
+    document.getElementById('empNombre').value   = e.nombre;
+    document.getElementById('empApPat').value    = e.apellido_paterno;
+    document.getElementById('empApMat').value    = e.apellido_materno || '';
+    document.getElementById('empNumero').value   = e.numero_empleado;
+    document.getElementById('empNumero').disabled = true;
+    document.getElementById('empTelefono').value = e.telefono || '';
+    document.getElementById('empCorreo').value   = e.correo || '';
+    document.getElementById('empPuesto').value   = e.id_puesto;
+    document.getElementById('empTurno').value    = e.id_turno;
+    document.getElementById('empMetodo').value   = e.metodo_checada;
+    document.getElementById('empFechaIngreso').value = e.fecha_ingreso?.split('T')[0] || '';
+    document.getElementById('empFoto').value     = e.foto_url || '';
+    document.getElementById('empModalTitle').textContent = 'Editar empleado';
+    new bootstrap.Modal(document.getElementById('empModal')).show();
+  },
+
+  async save() {
+    const id = document.getElementById('empId').value;
+    const data = {
+      nombre:           document.getElementById('empNombre').value.trim(),
+      apellido_paterno: document.getElementById('empApPat').value.trim(),
+      apellido_materno: document.getElementById('empApMat').value.trim(),
+      numero_empleado:  document.getElementById('empNumero').value.trim(),
+      telefono:         document.getElementById('empTelefono').value.trim(),
+      correo:           document.getElementById('empCorreo').value.trim(),
+      id_puesto:        document.getElementById('empPuesto').value,
+      id_turno:         document.getElementById('empTurno').value,
+      metodo_checada:   document.getElementById('empMetodo').value,
+      fecha_ingreso:    document.getElementById('empFechaIngreso').value,
+      foto_url:         document.getElementById('empFoto').value.trim(),
+    };
+
+    const btn = document.getElementById('empSaveBtn');
+    btn.disabled = true;
+    const res = id ? await API.Empleados.update(id, data) : await API.Empleados.create(data);
+    btn.disabled = false;
+
+    if (res.ok) {
+      Utils.toast(id ? 'Empleado actualizado' : 'Empleado creado');
+      bootstrap.Modal.getInstance(document.getElementById('empModal'))?.hide();
+      this.loadEmpleados();
+    } else {
+      Utils.toast(res.error || 'Error al guardar', 'error');
+    }
+  },
+
+  toggleEstado(id, activo) {
+    Utils.confirm(
+      activo ? '¿Desactivar este empleado?' : '¿Reactivar este empleado?',
+      async () => {
+        const res = await API.Empleados.toggle(id, activo ? 0 : 1);
+        if (res.ok) { Utils.toast('Estado actualizado'); this.loadEmpleados(); }
+        else Utils.toast(res.error, 'error');
+      }
+    );
+  },
+
+  async openQR(id, nombre, numero) {
+    const res = await API.Empleados.qrToken(id);
+    if (!res.ok) return Utils.toast('Error al obtener QR', 'error');
+    const token = res.data?.qr_token || `EMP-${id}`;
+
+    document.getElementById('qrContainer').innerHTML = '';
+    document.getElementById('qrName').textContent = nombre;
+    document.getElementById('qrNum').textContent  = `#${numero}`;
+    new bootstrap.Modal(document.getElementById('qrModal')).show();
+
+    setTimeout(() => {
+      new QRCode(document.getElementById('qrContainer'), {
+        text: token, width: 180, height: 180,
+        colorDark: '#000', colorLight: '#fff',
+      });
+    }, 200);
+  },
+
+  printQr() { window.print(); },
+
+  async openHorario(id, nombre) {
+    this.horarioEmpId = id;
+    const res = await API.Empleados.horario(id);
+    const dias = res.data?.dias_laborales || res.data || [];
+    const base = res.data?.turno_base || { hora_entrada: '08:00', hora_salida: '17:00' };
+    
+    // Fallback format limits HH:mm
+    const baseEntrada = base.hora_entrada.substring(0, 5);
+    const baseSalida  = base.hora_salida.substring(0, 5);
+
+    const DIAS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+    document.getElementById('horarioBody').innerHTML = `
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">
+        Horario personalizado para <strong>${nombre}</strong>.<br>
+        <span style="font-size:11px;color:var(--text-muted)">Si no hay horario configurado, se usa el turno base.</span>
+      </p>
+      ${DIAS.map((d, i) => {
+        const config = dias.find(x => x.dia_semana === i+1) || {};
+        const on = config.activo !== undefined ? config.activo : (i < 5 ? 1 : 0);
+        return `
+          <div class="schedule-day-row">
+            <span class="day-label">${d}</span>
+            <div class="day-toggle ${on?'on':''}" data-day="${i+1}" onclick="this.classList.toggle('on')"></div>
+            <div class="day-inputs">
+              <input type="time" class="form-control" data-day="${i+1}" data-field="entrada"
+                value="${config.hora_entrada ? config.hora_entrada.substring(0,5) : baseEntrada}">
+              <span style="color:var(--text-muted);font-size:12px">a</span>
+              <input type="time" class="form-control" data-day="${i+1}" data-field="salida"
+                value="${config.hora_salida ? config.hora_salida.substring(0,5) : baseSalida}">
+            </div>
+          </div>`;
+      }).join('')}
+    `;
+    new bootstrap.Modal(document.getElementById('horarioModal')).show();
+  },
+
+  async saveHorario() {
+    const body = document.getElementById('horarioBody');
+    const dias = [];
+    body.querySelectorAll('.day-toggle').forEach(tog => {
+      const day = tog.dataset.day;
+      const entrada = body.querySelector(`input[data-day="${day}"][data-field="entrada"]`).value;
+      const salida  = body.querySelector(`input[data-day="${day}"][data-field="salida"]`).value;
+      dias.push({ dia_semana: +day, activo: tog.classList.contains('on') ? 1 : 0, hora_entrada: entrada, hora_salida: salida });
+    });
+
+    const res = await API.Empleados.saveHorario(this.horarioEmpId, dias);
+    if (res.ok) {
+      Utils.toast('Horario guardado correctamente');
+      bootstrap.Modal.getInstance(document.getElementById('horarioModal'))?.hide();
+    } else {
+      Utils.toast(res.error || 'Error al guardar', 'error');
+    }
+  },
+};
+</script>
+</body>
+</html>

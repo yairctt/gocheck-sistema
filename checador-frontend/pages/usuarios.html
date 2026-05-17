@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usuarios — GoCheck</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/fontawesome/all.min.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <div id="sidebar-placeholder"></div>
+    <div class="main-content">
+      <div id="navbar-placeholder"></div>
+      <div class="page-body">
+
+        <div class="page-title-bar">
+          <div>
+            <div class="page-title"><i class="fas fa-user-shield page-icon"></i> Usuarios del sistema</div>
+            <div class="page-subtitle">Control de acceso y roles</div>
+          </div>
+          <button class="btn btn-primary" onclick="Page.openCreate()">
+            <i class="fas fa-plus"></i> Nuevo usuario
+          </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filter-bar mb-3">
+          <div class="search-input-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" class="form-control" id="uSearch" placeholder="Buscar usuario…">
+          </div>
+          <select class="form-select" id="uRol" style="max-width:160px">
+            <option value="">Todos los roles</option>
+            <option value="superadmin">Superadmin</option>
+            <option value="admin">Admin</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="consulta">Consulta</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="Page.load()">
+            <i class="fas fa-filter"></i> Filtrar
+          </button>
+        </div>
+
+        <!-- Tabla -->
+        <div class="card">
+          <div class="card-body p-0">
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Usuario</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Último login</th>
+                    <th>Creado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="usrTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div id="footer-placeholder"></div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal fade" id="usrModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title" id="usrModalTitle">Nuevo usuario</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="usrForm">
+            <input type="hidden" id="usrId">
+            <div class="mb-3">
+              <label class="form-label">Username</label>
+              <input type="text" class="form-control" id="usrUsername" autocomplete="off" required>
+            </div>
+            <div class="mb-3" id="usrPwdGroup">
+              <label class="form-label">Contraseña</label>
+              <input type="password" class="form-control" id="usrPassword" autocomplete="new-password">
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="usrPwdHint"></div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Rol</label>
+              <select class="form-select" id="usrRol">
+                <option value="superadmin">Superadmin</option>
+                <option value="admin">Admin</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="consulta">Consulta</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Empleado vinculado (opcional)</label>
+              <select class="form-select" id="usrEmp">
+                <option value="">Ninguno</option>
+              </select>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary" onclick="Page.save()"><i class="fas fa-save"></i> Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="/assets/js/main.js"></script>
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/utils.js"></script>
+  <script>
+    const Page = {
+      async init() {
+        const emps = await API.Empleados.list('?activo=1&per_page=200');
+        if (emps.ok) Utils.fillSelect('usrEmp', emps.data?.data || emps.data || [], 'id_empleado', 'nombre_completo', 'Ninguno');
+        this.load();
+      },
+
+      buildParams() {
+        return Utils.buildQuery({
+          search: document.getElementById('uSearch').value,
+          rol: document.getElementById('uRol').value,
+        });
+      },
+
+      async load() {
+        Utils.showLoader('usrTbody', 6);
+        const res = await API.Usuarios.list(this.buildParams());
+        if (!res.ok || !res.data) { Utils.emptyState('usrTbody', 6); return; }
+        const list = res.data?.data || res.data || [];
+        if (!list.length) { Utils.emptyState('usrTbody', 6); return; }
+
+        document.getElementById('usrTbody').innerHTML = list.map(u => `
+      <tr>
+        <td>
+          <div class="emp-cell">
+            <div class="emp-avatar" style="background:var(--bg-secondary);color:var(--accent-blue)">${Utils.initials(u.username)}</div>
+            <div class="emp-name">${u.username}</div>
+          </div>
+        </td>
+        <td>${Utils.rolBadge(u.rol)}</td>
+        <td>${Utils.activoBadge(u.activo)}</td>
+        <td class="text-mono" style="font-size:11px">${Utils.formatDateTime(u.ultimo_login)}</td>
+        <td class="text-mono" style="font-size:11px">${Utils.formatDate(u.created_at)}</td>
+        <td>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-outline btn-icon btn-sm" onclick="Page.openEdit(${u.id_usuario})">
+              <i class="fas fa-pencil"></i>
+            </button>
+            <button class="btn btn-danger-outline btn-icon btn-sm" onclick="Page.toggle(${u.id_usuario},${u.activo})">
+              <i class="fas fa-${u.activo ? 'ban' : 'check'}"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+      },
+
+      openCreate() {
+        document.getElementById('usrForm').reset();
+        document.getElementById('usrId').value = '';
+        document.getElementById('usrModalTitle').textContent = 'Nuevo usuario';
+        document.getElementById('usrPwdHint').textContent = '';
+        document.getElementById('usrPassword').required = true;
+        new bootstrap.Modal(document.getElementById('usrModal')).show();
+      },
+
+      async openEdit(id) {
+        const res = await API.Usuarios.get(id);
+        if (!res.ok) return Utils.toast('Error', 'error');
+        const u = res.data;
+        document.getElementById('usrId').value = u.id_usuario;
+        document.getElementById('usrUsername').value = u.username;
+        document.getElementById('usrRol').value = u.rol;
+        document.getElementById('usrEmp').value = u.id_empleado || '';
+        document.getElementById('usrPassword').value = '';
+        document.getElementById('usrPassword').required = false;
+        document.getElementById('usrPwdHint').textContent = 'Dejar en blanco para no cambiar';
+        document.getElementById('usrModalTitle').textContent = 'Editar usuario';
+        new bootstrap.Modal(document.getElementById('usrModal')).show();
+      },
+
+      async save() {
+        const id = document.getElementById('usrId').value;
+        const data = {
+          username: document.getElementById('usrUsername').value.trim(),
+          rol: document.getElementById('usrRol').value,
+          id_empleado: document.getElementById('usrEmp').value || null,
+        };
+        const pwd = document.getElementById('usrPassword').value;
+        if (pwd) data.password = pwd;
+
+        const res = id ? await API.Usuarios.update(id, data) : await API.Usuarios.create(data);
+        if (res.ok) {
+          Utils.toast(id ? 'Usuario actualizado' : 'Usuario creado');
+          bootstrap.Modal.getInstance(document.getElementById('usrModal'))?.hide();
+          this.load();
+        } else Utils.toast(res.error, 'error');
+      },
+
+      toggle(id, activo) {
+        Utils.confirm(activo ? '¿Desactivar usuario?' : '¿Activar usuario?', async () => {
+          const res = await API.Usuarios.toggle(id, activo ? 0 : 1);
+          if (res.ok) { Utils.toast('Actualizado'); this.load(); }
+          else Utils.toast(res.error, 'error');
+        });
+      },
+    };
+  </script>
+</body>
+
+</html>

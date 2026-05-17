@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bitácora — GoCheck</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/fontawesome/all.min.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-placeholder"></div>
+  <div class="main-content">
+    <div id="navbar-placeholder"></div>
+    <div class="page-body">
+
+      <div class="page-title-bar">
+        <div>
+          <div class="page-title"><i class="fas fa-shield-alt page-icon"></i> Bitácora de accesos</div>
+          <div class="page-subtitle">Auditoría completa del sistema — bitacora_accesos</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="Utils.exportTableToCSV('bitTable','bitacora.csv')">
+          <i class="fas fa-file-csv"></i> Exportar
+        </button>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filter-bar mb-3">
+        <div class="search-input-wrap">
+          <i class="fas fa-search"></i>
+          <input type="text" class="form-control" id="bSearch" placeholder="Buscar usuario o acción…">
+        </div>
+        <input type="date" class="form-control" id="bFecha" style="max-width:160px">
+        <select class="form-select" id="bAccion" style="max-width:170px">
+          <option value="">Todas las acciones</option>
+          <option value="LOGIN">Login</option>
+          <option value="LOGOUT">Logout</option>
+          <option value="CREATE">Crear</option>
+          <option value="UPDATE">Actualizar</option>
+          <option value="DELETE">Eliminar</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="Page.load()">
+          <i class="fas fa-filter"></i> Filtrar
+        </button>
+      </div>
+
+      <!-- Tabla -->
+      <div class="card">
+        <div class="card-body p-0">
+          <div class="table-wrapper">
+            <table class="data-table" id="bitTable">
+              <thead>
+                <tr>
+                  <th>Fecha / Hora</th>
+                  <th>Usuario</th>
+                  <th>Acción</th>
+                  <th>Entidad</th>
+                  <th>ID Entidad</th>
+                  <th>Detalle</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody id="bitTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div id="footer-placeholder"></div>
+  </div>
+</div>
+
+<script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script>
+const ACCION_COLORS = {
+  LOGIN:   'bs-entrada',
+  LOGOUT:  'bs-inactive',
+  CREATE:  'bs-normal',
+  UPDATE:  'bs-retardo',
+  DELETE:  'bs-falta',
+};
+
+const Page = {
+  async init() {
+    this.load();
+  },
+
+  buildParams() {
+    return Utils.buildQuery({
+      search: document.getElementById('bSearch').value,
+      fecha:  document.getElementById('bFecha').value,
+      accion: document.getElementById('bAccion').value,
+    });
+  },
+
+  async load() {
+    Utils.showLoader('bitTbody', 7);
+    const res = await API.Bitacora.list(this.buildParams());
+    if (!res.ok || !res.data) { Utils.emptyState('bitTbody', 7); return; }
+    const list = res.data?.data || res.data || [];
+    if (!list.length) { Utils.emptyState('bitTbody', 7, 'Sin registros en la bitácora para este filtro'); return; }
+
+    document.getElementById('bitTbody').innerHTML = list.map(b => {
+      const accionUp = (b.accion||'').toUpperCase();
+      const cls = ACCION_COLORS[accionUp] || 'bs-inactive';
+      return `
+        <tr>
+          <td class="text-mono" style="font-size:11px">${Utils.formatDateTime(b.fecha_hora)}</td>
+          <td>
+            <div class="emp-cell">
+              <div class="emp-avatar" style="background:var(--bg-secondary);color:var(--accent-blue);font-size:11px">
+                ${Utils.initials(b.username||'?')}
+              </div>
+              <span style="font-size:13px">${b.username||'—'}</span>
+            </div>
+          </td>
+          <td><span class="badge-status ${cls}">${b.accion||'—'}</span></td>
+          <td style="font-size:12.5px">${b.entidad||'—'}</td>
+          <td class="text-mono" style="font-size:11px;color:var(--text-muted)">${b.id_entidad||'—'}</td>
+          <td style="font-size:12px;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="${b.detalle||''}">${b.detalle||'—'}</td>
+          <td class="text-mono" style="font-size:11px;color:var(--text-muted)">${b.ip||'—'}</td>
+        </tr>`;
+    }).join('');
+  },
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solicitudes — GoCheck</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/fontawesome/all.min.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-placeholder"></div>
+  <div class="main-content">
+    <div id="navbar-placeholder"></div>
+    <div class="page-body">
+
+      <div class="page-title-bar">
+        <div>
+          <div class="page-title"><i class="fas fa-inbox page-icon"></i> Solicitudes</div>
+          <div class="page-subtitle">Permisos, vacaciones e incapacidades</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="Page.nuevaSolicitud()">
+          <i class="fas fa-plus me-1"></i> Nueva Solicitud
+        </button>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filter-bar mb-3">
+        <select class="form-select" id="fEstatus" style="max-width:180px">
+          <option value="">Todos los estatus</option>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="APROBADO">Aprobado</option>
+          <option value="RECHAZADO">Rechazado</option>
+          <option value="CANCELADO">Cancelado</option>
+        </select>
+        <select class="form-select" id="fTipoSol" style="max-width:180px">
+          <option value="">Tipo</option>
+          <option value="PERMISO">Permiso</option>
+          <option value="VACACIONES">Vacaciones</option>
+          <option value="INCAPACIDAD">Incapacidad</option>
+        </select>
+        <input type="date" class="form-control" id="fFechaSol" style="max-width:160px">
+        <button class="btn btn-primary btn-sm" onclick="Page.load()">
+          <i class="fas fa-filter"></i> Filtrar
+        </button>
+      </div>
+
+      <!-- Tabla -->
+      <div class="card">
+        <div class="card-body p-0">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Empleado</th>
+                  <th>Tipo</th>
+                  <th>Fecha inicio</th>
+                  <th>Fecha fin</th>
+                  <th>Días</th>
+                  <th>Motivo</th>
+                  <th>Estatus</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="solTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div id="footer-placeholder"></div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Solicitud -->
+<div class="modal fade" id="nuevaSolModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="fas fa-plus me-2"></i>Nueva Solicitud</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Empleado <span class="text-danger">*</span></label>
+            <select class="form-select" id="nsEmpleado">
+              <option value="">Cargando empleados...</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Tipo de solicitud</label>
+            <select class="form-select" id="nsTipo">
+              <option value="PERMISO">Permiso</option>
+              <option value="VACACIONES">Vacaciones</option>
+              <option value="INCAPACIDAD">Incapacidad</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">Fecha inicio</label>
+            <input type="date" class="form-control" id="nsFechaInicio" onchange="Page.calcDias()">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Fecha fin</label>
+            <input type="date" class="form-control" id="nsFechaFin" onchange="Page.calcDias()">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Días solicitados</label>
+            <input type="text" class="form-control" id="nsDias" readonly placeholder="Se calculará automáticamente">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Motivo <span class="text-danger">*</span></label>
+            <textarea class="form-control" id="nsMotivo" rows="3" placeholder="Describe brevemente el motivo de tu solicitud..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" onclick="Page.enviarSolicitud()">
+          <i class="fas fa-paper-plane me-1"></i> Enviar Solicitud
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal detalle/autorización -->
+<div class="modal fade" id="solModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Solicitud #<span id="solModalId"></span></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="solModalBody"></div>
+      <div class="modal-footer" id="solModalFooter"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script>
+const Page = {
+  async init() {
+    this.load();
+    await this.loadEmpleados();
+  },
+
+  async loadEmpleados() {
+    const params = Utils.buildQuery({ activo: 1, per_page: 500 });
+    const res = await API.Empleados.list(params);
+    if (res.ok) {
+      const list = res.data?.data || res.data || [];
+      const emps = list.map(e => ({
+        id: e.id_empleado,
+        nombre: `${e.nombre} ${e.apellido_paterno} ${e.apellido_materno || ''}`.trim()
+      }));
+      Utils.fillSelect('nsEmpleado', emps, 'id', 'nombre', 'Seleccionar empleado...');
+    }
+  },
+
+  nuevaSolicitud() {
+    // Limpiar campos
+    document.getElementById('nsEmpleado').value = '';
+    document.getElementById('nsTipo').value = 'PERMISO';
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('nsFechaInicio').value = today;
+    document.getElementById('nsFechaFin').value = today;
+    document.getElementById('nsDias').value = '1 día';
+    document.getElementById('nsMotivo').value = '';
+    new bootstrap.Modal(document.getElementById('nuevaSolModal')).show();
+  },
+
+  calcDias() {
+    const inicio = document.getElementById('nsFechaInicio').value;
+    const fin    = document.getElementById('nsFechaFin').value;
+    if (!inicio || !fin) return;
+    const dias = Math.max(1, Math.ceil(
+      (new Date(fin) - new Date(inicio)) / (1000 * 60 * 60 * 24)
+    ) + 1);
+    document.getElementById('nsDias').value = `${dias} día${dias !== 1 ? 's' : ''}`;
+  },
+
+  async enviarSolicitud() {
+    const id_empleado  = document.getElementById('nsEmpleado').value;
+    const tipo_clave   = document.getElementById('nsTipo').value;
+    const fecha_inicio = document.getElementById('nsFechaInicio').value;
+    const fecha_fin    = document.getElementById('nsFechaFin').value;
+    const motivo       = document.getElementById('nsMotivo').value.trim();
+
+    if (!id_empleado)                return Utils.toast('Selecciona un empleado', 'error');
+    if (!fecha_inicio || !fecha_fin) return Utils.toast('Selecciona las fechas', 'error');
+    if (fecha_fin < fecha_inicio)    return Utils.toast('La fecha fin no puede ser anterior a la de inicio', 'error');
+    if (!motivo)                     return Utils.toast('El motivo es requerido', 'error');
+
+    const res = await API.Solicitudes.create({ id_empleado, tipo_clave, fecha_inicio, fecha_fin, motivo });
+
+    if (res.ok) {
+      Utils.toast('Solicitud enviada correctamente', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('nuevaSolModal'))?.hide();
+      this.load();
+    } else {
+      Utils.toast(res.error || 'Error al enviar la solicitud', 'error');
+    }
+  },
+
+
+  buildParams() {
+    return Utils.buildQuery({
+      estatus: document.getElementById('fEstatus').value,
+      tipo:    document.getElementById('fTipoSol').value,
+      fecha:   document.getElementById('fFechaSol').value,
+    });
+  },
+
+  async load() {
+    Utils.showLoader('solTbody', 8);
+    const res = await API.Solicitudes.list(this.buildParams());
+    if (!res.ok || !res.data) { Utils.emptyState('solTbody', 8); return; }
+    const list = res.data?.data || res.data || [];
+    if (!list.length) { Utils.emptyState('solTbody', 8); return; }
+
+    const tipoIconos = { PERMISO:'id-card', VACACIONES:'umbrella-beach', INCAPACIDAD:'hospital' };
+
+    document.getElementById('solTbody').innerHTML = list.map(s => `
+      <tr>
+        <td>
+          <div class="emp-cell">
+            <div class="emp-avatar">${Utils.initials(s.nombre_completo||'?')}</div>
+            <div>
+              <div class="emp-name">${s.nombre_completo||'—'}</div>
+              <div class="emp-num">#${s.numero_empleado||''}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <span style="font-size:12.5px">
+            <i class="fas fa-${tipoIconos[s.tipo_clave]||'file'} me-1" style="color:var(--text-muted)"></i>
+            ${s.tipo_nombre||s.tipo_clave}
+          </span>
+        </td>
+        <td class="text-mono" style="font-size:11px">${s.fecha_inicio||'—'}</td>
+        <td class="text-mono" style="font-size:11px">${s.fecha_fin||'—'}</td>
+        <td class="text-mono" style="font-size:12px;text-align:center">${s.total_dias||'—'}</td>
+        <td style="font-size:12.5px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+            title="${s.motivo||''}">${s.motivo||'—'}</td>
+        <td>${Utils.solicitudBadge(s.estatus_clave||s.clave)}</td>
+        <td>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-outline btn-icon btn-sm" title="Ver detalle" onclick="Page.verDetalle(${s.id_solicitud})">
+              <i class="fas fa-eye"></i>
+            </button>
+            ${s.documento_url ? `
+              <a href="${s.documento_url}" target="_blank" class="btn btn-outline btn-icon btn-sm" title="Ver documento">
+                <i class="fas fa-file-pdf"></i>
+              </a>` : ''}
+            ${(s.estatus_clave||s.clave) === 'PENDIENTE' ? `
+              <button class="btn btn-outline btn-icon btn-sm text-primary" title="Aprobar" onclick="Page.aprobar(${s.id_solicitud})">
+                <i class="fas fa-check"></i>
+              </button>
+              <button class="btn btn-danger-outline btn-icon btn-sm" title="Rechazar" onclick="Page.rechazar(${s.id_solicitud})">
+                <i class="fas fa-times"></i>
+              </button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  },
+
+  async verDetalle(id) {
+    const res = await API.Solicitudes.get(id);
+    if (!res.ok) return Utils.toast('Error', 'error');
+    const s = res.data;
+    document.getElementById('solModalId').textContent = id;
+    document.getElementById('solModalBody').innerHTML = `
+      <div style="display:grid;gap:10px">
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="form-label">Empleado</div>
+            <div style="font-weight:600">${s.nombre_completo||'—'}</div>
+          </div>
+          <div class="col-6">
+            <div class="form-label">Tipo</div>
+            <div>${s.tipo_nombre||s.tipo_clave}</div>
+          </div>
+          <div class="col-6">
+            <div class="form-label">Fecha inicio</div>
+            <div class="text-mono">${s.fecha_inicio||'—'}</div>
+          </div>
+          <div class="col-6">
+            <div class="form-label">Fecha fin</div>
+            <div class="text-mono">${s.fecha_fin||'—'}</div>
+          </div>
+          <div class="col-12">
+            <div class="form-label">Motivo</div>
+            <div style="font-size:13px">${s.motivo||'Sin motivo registrado'}</div>
+          </div>
+          <div class="col-12">
+            <div class="form-label">Estatus</div>
+            ${Utils.solicitudBadge(s.estatus_clave||s.clave)}
+          </div>
+          ${s.observaciones_auth ? `
+          <div class="col-12">
+            <div class="form-label">Observaciones de autorización</div>
+            <div style="font-size:13px;color:var(--text-secondary)">${s.observaciones_auth}</div>
+          </div>` : ''}
+        </div>
+      </div>
+    `;
+    document.getElementById('solModalFooter').innerHTML =
+      (s.estatus_clave||s.clave) === 'PENDIENTE'
+        ? `<button class="btn btn-outline" data-bs-dismiss="modal">Cerrar</button>
+           <button class="btn btn-danger-outline btn-sm" onclick="Page.rechazar(${id})"><i class="fas fa-times"></i> Rechazar</button>
+           <button class="btn btn-primary btn-sm" onclick="Page.aprobar(${id})"><i class="fas fa-check"></i> Aprobar</button>`
+        : `<button class="btn btn-outline" data-bs-dismiss="modal">Cerrar</button>`;
+    new bootstrap.Modal(document.getElementById('solModal')).show();
+  },
+
+  aprobar(id) {
+    Utils.confirm('¿Aprobar esta solicitud?', async () => {
+      const res = await API.Solicitudes.aprobar(id, '');
+      if (res.ok) { Utils.toast('Solicitud aprobada'); bootstrap.Modal.getInstance(document.getElementById('solModal'))?.hide(); this.load(); }
+      else Utils.toast(res.error, 'error');
+    });
+  },
+
+  rechazar(id) {
+    Utils.confirm('¿Rechazar esta solicitud?', async () => {
+      const res = await API.Solicitudes.rechazar(id, '');
+      if (res.ok) { Utils.toast('Solicitud rechazada'); bootstrap.Modal.getInstance(document.getElementById('solModal'))?.hide(); this.load(); }
+      else Utils.toast(res.error, 'error');
+    });
+  },
+};
+</script>
+</body>
+</html>

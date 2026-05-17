@@ -1,0 +1,66 @@
+[
+  {
+    "id_usuario": 1,
+    "username": "admin",
+    "rol": "superadmin",
+    "activo": 1,
+    "intentos_fallidos": 5,
+    "bloqueado_hasta": "2026-03-30T22:12:40.000Z"
+  },
+  {
+    "id_usuario": 2,
+    "username": "supervisor1",
+    "rol": "supervisor",
+    "activo": 1,
+    "intentos_fallidos": 0,
+    "bloqueado_hasta": null
+  },
+  {
+    "id_usuario": 4,
+    "username": "admin1",
+    "rol": "superadmin",
+    "activo": 1,
+    "intentos_fallidos": 5,
+    "bloqueado_hasta": "2026-03-30T22:12:29.000Z"
+  },
+  {
+    "id_usuario": 5,
+    "username": "yair",
+    "rol": "superadmin",
+    "activo": 1,
+    "intentos_fallidos": 0,
+    "bloqueado_hasta": null
+  },
+  {
+    "id_usuario": 6,
+    "username": "CONSULTA",
+    "rol": "consulta",
+    "activo": 1,
+    "intentos_fallidos": 0,
+    "bloqueado_hasta": null
+  },
+  {
+    "id_usuario": 7,
+    "username": "alejandro.m",
+    "rol": "admin",
+    "activo": 1,
+    "intentos_fallidos": 0,
+    "bloqueado_hasta": null
+  },
+  {
+    "id_usuario": 8,
+    "username": "fernando.c",
+    "rol": "supervisor",
+    "activo": 1,
+    "intentos_fallidos": 0,
+    "bloqueado_hasta": null
+  },
+  {
+    "id_usuario": 9,
+    "username": "consulta1",
+    "rol": "consulta",
+    "activo": 1,
+    "intentos_fallidos": 0,
+    "bloqueado_hasta": null
+  }
+]

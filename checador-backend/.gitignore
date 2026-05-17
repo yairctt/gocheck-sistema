@@ -1,0 +1,21 @@
+# Dependencias locales
+node_modules/
+
+# Variables de entorno y contraseñas sensibles
+.env
+.env.production
+.env.local
+
+# Archivos de logs de la aplicación
+logs/
+*.log
+app_debug.log
+
+# Scripts de prueba temporales
+test_get_employees.js
+
+# Editores y sistema operativo
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
